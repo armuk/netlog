@@ -38,120 +38,176 @@
       <section id="main_content">
         <h3>Description</h3>
 
-<p>
-netlog is a Loadable Kernel Module that logs information for every connection on the hosted machine.
-By utilizing the kprobes API, it probes the connect and accept system calls ,for TCP connections,
-as well as the bind system call, for UDP connections, and the socket destruction. 
-While probing, it logs the process name and process id, the user id that owns this process, the protocol
-(TCP/UDP), the local IP address and port as well as the remote IP address and port.
-</p>
+		<p>
+		netlog is a Loadable Kernel Module that logs information for every connection on the hosted machine.
+		By utilizing the kprobes API, it probes the connect and accept system calls ,for TCP connections,
+		as well as the bind system call, for UDP connections, and the socket destruction. 
+		While probing, it logs the process name and process id, the user id that owns this process, the protocol
+		(TCP/UDP), the local IP address and port as well as the remote IP address and port.
+		</p>
 
-<p>
-For UDP, it tracks only the bind system call, because UDP is a connectionless protocol,
-so the other approach was to track the packet communication, something that would
-add a lot of overhead. In order to compile the code that tracks UDP, you 
-have to change the symbolic constant (PROBE_UDP) that it's defined in the netlog header (netlog.h) from
-zero (0) to a non-zero value (i.e. 1) and recompile netlog.
-</p>
+		<p>
+		For UDP, it tracks only the bind system call, because UDP is a connectionless protocol,
+		so the other approach was to track the packet communication, something that would
+		add a lot of overhead. In order to compile the code that tracks UDP, you 
+		have to change the symbolic constant (PROBE_UDP) that it's defined in the netlog header (netlog.h) from
+		zero (0) to a non-zero value (i.e. 1) and recompile netlog.
+		</p>
 
-<p>
-netlog also tracks the destruction of the sockets. This is done by probing the 
-inet_shutdown kernel call, which is called after the close system call is called.
-In order to compile the code that tracks the connection close, you need to change the value of the
-symbolic constant (PROBE_CONNECTION_CLOSE) that is defined in the netlog header file (netlog.h) from 
-zero (0) to a non-zero value (i.e. 1) and recompile netlog.
-</p>
+		<p>
+		netlog also tracks the destruction of the sockets. This is done by probing the 
+		inet_shutdown kernel call, which is called after the close system call is called.
+		In order to compile the code that tracks the connection close, you need to change the value of the
+		symbolic constant (PROBE_CONNECTION_CLOSE) that is defined in the netlog header file (netlog.h) from 
+		zero (0) to a non-zero value (i.e. 1) and recompile netlog.
+		</p>
 
-<h3>Dynamic whitelisting</h3>
+	<h3>Change log</h3>
 
-<p>
-netlog offers whitelisting of connections at insertion time. This is done by passing parameters to the module.
-The parameter is named connections_to_whitelist and it's an array of strings with the following format:
+		<p>
+		1.30
+			*On the fly configuration of the whitelist
 
-<pre><code>"/absolute/execution/path|i<ip address>|p<port number>"</code></pre>
+		1.12
+			*Optimizations
+			*Dynamic Whitelisting
+		1.15
+			*Whitelisting of ip addresses and ports
+			*Absolute path mode
+		1.16
+			*Basic checks on given ip addresses and ports
+		</p>
 
-i.e.:
+	<h3>Dynamic whitelisting</h3>
 
-<pre><code>
-"/usr/bin/sshd|i<127.128.0.0>|p<22>"
-"/usr/bin/sshd|i<127.128.0.0>"
-"/usr/bin/sshd|p<22>"
-"/usr/bin/sshd"
-</pre></code>
+		<p>
+		netlog offers whitelisting of connections at insertion time. This is done by passing parameters to the module.
+		The parameter is named connections_to_whitelist and it's an array of strings with the following format:
 
-<p>
-The '&lt' and '&gt' can be ignored, they are supported just for visual reasons.
-</p>
-Example of whitelisting multiple connections:
-</p>
+		<pre><code>"/absolute/execution/path|i<ip address>|p<port number>"</code></pre>
 
-<pre><code>
-modprobe netlog connections_to_whitelist="/usr/sbin/skype","/usr/bin/ssh|i<127.0.0.1>","/usr/bin/sshd|i<127.0.0.1>|p<22>"
-</code></pre>
+		i.e.:
 
-<p>
-Note that you are not able to whitelist an ip address or port without specifing an absolute 
-execution path of a binary. Also, you can whitelist up to 150 connections. For more, change
-the symbolic constant MAX_WHITELIST_SIZE in whitelist.h and recompile netlog.
-</p>
-<p>
-Do not leave spaces between the comma separator and the strings because the parameter array will not be initialized.
-</p>
+		<pre><code>
+		"/usr/bin/sshd|i<127.128.0.0>|p<22>"
+		"/usr/bin/sshd|i<127.128.0.0>"
+		"/usr/bin/sshd|p<22>"
+		"/usr/bin/sshd"
+		</pre></code>
 
-<h3>Absolute Path Mode</h3>
+		<p>
+		The '&lt' and '&gt' can be ignored, they are supported just for visual reasons.
+		</p>
+		Example of whitelisting multiple connections:
+		</p>
 
-<p>
-The absolute path mode is activated by passing a non zero value to the debug_mode parameter.
-i.e.:
+		<pre><code>
+		modprobe netlog connections_to_whitelist="/usr/sbin/skype","/usr/bin/ssh|i<127.0.0.1>","/usr/bin/sshd|i<127.0.0.1>|p<22>"
+		</code></pre>
 
-<pre><code>modprobe netlog.ko absolute_path_mode=1</pre></code>
+		<p>
+		Note that you are not able to whitelist an ip address or port without specifing an absolute 
+		execution path of a binary. Also, you can whitelist up to 150 connections. For more, change
+		the symbolic constant MAX_WHITELIST_SIZE in whitelist.h and recompile netlog.
+		</p>
+		<p>
+		Do not leave spaces between the comma separator and the strings because the parameter array will not be initialized.
+		</p>
 
-<p>
-Absolute path mode will log the absolute execution path instead of the process name.
-This will be helpfull in case that you want to see the absolute execution path of a connection that
-you want to whitelist.
-</p>
+		<h3>On the fly configuration of the whitelist</h3>
 
-<h3>How to deploy</h3>
+			<p>
+			The process of whitelisting (described in "Dynamic Whitelisting" section) can be done also while netlog is planted.
+			If you want to change the whitelist when netlog is planted, there is no need to remove the module and insert 
+			it again with the updated whitelist information passed as insertion parameters. This can be done by editing the
+			/proc/config-netlog proc file. This file contains per line the currently whitelisted connections. 
 
-<pre><code>
-sudo yum install rpm-build redhat-rpm-config kernel-devel gcc
-cd /tmp/
-git init
-git pull https://github.com/CERN-CERT/netlog
-rpmbuild --rebuild netlog-*.slc6.src.rpm
-sudo rpm -i ~/rpmbuild/RPMS/x86_64/kmod-netlog-*.rpm
-sudo depmod -a	
-sudo modprobe netlog
-</code></pre>
+			i.e. if you want to whitelist the next connections, after insertion of netlog:
 
-<h3>Supported kernel versions</h3>
+			"/usr/bin/skype", "/usr/bin/ssh|i<127.0.0.1>" and "/usr/sbin/sshd|i<127.0.0.1>|p<22>"
 
-<p>2.6.12 up to 3.3.8</p>
+			You should execute in a bash shell:
 
-<h3>Format of the log messages</h3>
+			echo "/usr/bin/skype,/usr/bin/ssh|i<127.0.0.1>,/usr/sbin/sshd|i<127.0.0.1>|p<22>" > /proc/netlog_config
 
-<p>TCP connect:
-<pre><code>Dec 19 14:03:17 panos-PC kernel: [ 1341.648413] netlog: http[3206] TCP 137.138.191.167:52507 -> 130.59.10.36:80 (uid=0)</pre></code>
+			<h4>WARNING</h4>
+			
+			<p>
+			Do not edit the proc_config entry with a text editor or try to replace it etc.
+			Just echo the connection strings that describes the connections you want to whitelist,
+			separated by the comma character and NOTHING MORE (not even a space).			
+			Also do not try to append the proc file.						
 
-<p>TCP accept:
-<pre><code>Dec 19 14:18:37 panos-PC kernel: [ 2262.125936] netlog: sshd[827] TCP 137.138.191.167:22 <- 137.138.32.18:49904 (uid=0)</pre></code>
+			For the format of the connection string read the "Dynamic Whitelisting" section above.
 
-<p>UDP binds:
+			netlog will log the changes of the whitelist:
+			</p>
+			
+			<p>
+			<pre><code>
+			Sep 19 09:57:26 panos-PC kernel: [ 1841.262471] netlog-config:	[+] Cleared whitelist
+			Sep 19 09:57:26 panos-PC kernel: [ 1841.262479] netlog-config:	[+] Whitelisted /usr/sbin/skype
+			Sep 19 09:57:26 panos-PC kernel: [ 1841.262483] netlog-config:	[+] Whitelisted /usr/bin/ssh|i<127.0.0.1>
+			Sep 19 09:57:26 panos-PC kernel: [ 1841.262486] netlog-config:	[+] Whitelisted /usr/sbin/sshd|i<127.0.0.1>
+			</pre></code>
+			</p>
 
-<pre><code>
-Dec 19 14:22:50 panos-PC kernel: [ 2515.081074] netlog: skype[4261] UDP bind 127.0.0.1:0 (uid=1000)
-Dec 19 14:22:50 panos-PC kernel: [ 2515.271375] netlog: skype[4261] UDP bind (any IP address):2752 (uid=1000)
-</pre></code>
+	<h3>Absolute Path Mode</h3>
 
-<p>Connection close:
-<pre><code>Dec 19 14:19:07 panos-PC kernel: [ 2292.580879] netlog: sshd[3755] TCP 137.138.191.167:22 <-> 137.138.32.18:49904 (uid=0)</p></pre></code>
+		<p>
+		The absolute path mode is activated by passing a non zero value to the debug_mode parameter.
+		i.e.:
 
-<h3>Support or Contact</h3>
+		<pre><code>modprobe netlog.ko absolute_path_mode=1</pre></code>
 
-<p>
-<a href="mailto:cert@cern.ch?Subject=netlog%20support/contact">CERN CERT</a>
-</p>
+		<p>
+		Absolute path mode will log the absolute execution path instead of the process name.
+		This will be helpfull in case that you want to see the absolute execution path of a connection that
+		you want to whitelist.
+		</p>
+
+	<h3>Supported kernel versions</h3>
+
+		<p>2.6.18 up to 3.4.9</p>
+
+
+	<h3>How to deploy</h3>
+
+		<pre><code>
+		sudo yum install rpm-build redhat-rpm-config kernel-devel gcc
+		cd /tmp/
+		git init
+		git pull https://github.com/CERN-CERT/netlog
+		rpmbuild --rebuild netlog-*.slc6.src.rpm
+		sudo rpm -i ~/rpmbuild/RPMS/x86_64/kmod-netlog-*.rpm
+		sudo depmod -a	
+		sudo modprobe netlog
+		</code></pre>
+
+
+	<h3>Format of the log messages</h3>
+
+		<p>TCP connect:
+		<pre><code>Dec 19 14:03:17 panos-PC kernel: [ 1341.648413] netlog: http[3206] TCP 137.138.191.167:52507 -> 130.59.10.36:80 (uid=0)</pre></code>
+
+		<p>TCP accept:
+		<pre><code>Dec 19 14:18:37 panos-PC kernel: [ 2262.125936] netlog: sshd[827] TCP 137.138.191.167:22 <- 137.138.32.18:49904 (uid=0)</pre></code>
+
+		<p>UDP binds:
+
+		<pre><code>
+		Dec 19 14:22:50 panos-PC kernel: [ 2515.081074] netlog: skype[4261] UDP bind 127.0.0.1:0 (uid=1000)
+		Dec 19 14:22:50 panos-PC kernel: [ 2515.271375] netlog: skype[4261] UDP bind (any IP address):2752 (uid=1000)
+		</pre></code>
+
+		<p>Connection close:
+		<pre><code>Dec 19 14:19:07 panos-PC kernel: [ 2292.580879] netlog: sshd[3755] TCP 137.138.191.167:22 <-> 137.138.32.18:49904 (uid=0)</p></pre></code>
+
+	<h3>Support or Contact</h3>
+
+		<p>
+		<a href="mailto:cert@cern.ch?Subject=netlog%20support/contact">CERN CERT</a>
+		</p>
 
       </section>
     </div>
